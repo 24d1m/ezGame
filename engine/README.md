@@ -27,6 +27,7 @@ OFFICIAL=PocketMine-MP.phar bash build.sh 5.51.2   # 공식 판과 같은 빌드
 | [001](patches/001-gc-threshold-api.patch) | `GarbageCollectorManager::setThreshold()`, `MemoryManager::getCycleGcManager()` | 판이 도는 동안 순환 GC를 미루고 판 사이에 돌리려고. 전에는 리플렉션으로 바꿨다 |
 | [002](patches/002-creative-cache-warmup.patch) | `CreativeInventoryCache::warmup()` | 서버가 켜질 때 크리에이티브 목록 캐시를 미리 만들려고. 만드는 함수가 private이라 리플렉션으로 불렀다 |
 | [003](patches/003-world-light-updates-toggle.patch) | `World::setLightUpdatesEnabled()`, `areLightUpdatesEnabled()` | 미니게임 경기장에서 서버 빛 계산을 끄려고. 전에는 청크의 빛 상태를 비워서 엔진이 건너뛰게 만들었다 |
+| [005](patches/005-tick-phase-breakdown.patch) | `Server::getLastTickPhases()` | 바로 앞 틱이 단계별로 몇 ms였는지 늘 잰다. 느린 틱이 나면 로그 한 줄에 같이 남겨, 측정 명령을 안 켜 둔 때의 렉도 원인을 알 수 있게 |
 
 003은 조금 조심해야 했다. 예전 방식은 빛 상태가 비어 있는 청크의 무작위 블록 틱(풀 번짐, 얼음 녹기 같은 것)도 같이 멈췄다.
 새 함수로 빛만 끄면 그동안 멈춰 있던 무작위 틱이 다시 돌기 시작한다. 빛은 더 이상 다시 계산되지 않으니, 낡은 빛 값을 보고 얼음이 녹을지 정하게 된다.

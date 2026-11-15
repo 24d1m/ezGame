@@ -1,0 +1,90 @@
+diff --git a/src/Server.php b/src/Server.php
+index 30aa7c8..4183209 100644
+--- a/src/Server.php
++++ b/src/Server.php
+@@ -143,6 +143,7 @@ use function filemtime;
+ use function fopen;
+ use function get_class;
+ use function gettype;
++use function hrtime;
+ use function ini_set;
+ use function is_array;
+ use function is_dir;
+@@ -1886,6 +1887,22 @@ class Server{
+ 	/**
+ 	 * Tries to execute a server tick
+ 	 */
++	/**
++	 * EZ 엔진 패치 005 (2026-11-15): 바로 앞 틱의 큰 단계별 시간 (ms) — 엔진 타이밍을 켜지 않아도 늘 잰다 (틱마다 hrtime 7번).
++	 * 느린 틱이 났을 때 플러그인(EZCore TickMonitor)이 로그에 함께 남겨, netcheck 를 안 하던 때의 렉도 원인을 알 수 있게 한다.
++	 * between = 틱 사이에 처리한 알림(네트워크 · 비동기 완료 깨우기) 시간, other = 나머지 (TPS 갱신 · 쿼리 · 콘솔 등)
++	 * @var array{scheduler: float, async: float, worlds: float, network: float, memory: float, other: float, between: float}
++	 */
++	private array $ezLastTickPhases = ["scheduler" => 0.0, "async" => 0.0, "worlds" => 0.0, "network" => 0.0, "memory" => 0.0, "other" => 0.0, "between" => 0.0];
++
++	/**
++	 * EZ 엔진 패치 005: 바로 앞 틱의 큰 단계별 시간 (ms)
++	 * @return array{scheduler: float, async: float, worlds: float, network: float, memory: float, other: float, between: float}
++	 */
++	public function getLastTickPhases() : array{
++		return $this->ezLastTickPhases;
++	}
++
+ 	private function tick() : void{
+ 		$tickTime = microtime(true);
+ 		if(($tickTime - $this->nextTick) < -0.025){ //Allow half a tick of diff
+@@ -1893,22 +1910,27 @@ class Server{
+ 		}
+ 
+ 		Timings::$serverTick->startTiming();
++		$ezT0 = hrtime(true);
+ 
+ 		++$this->tickCounter;
+ 
+ 		Timings::$scheduler->startTiming();
+ 		$this->pluginManager->tickSchedulers($this->tickCounter);
+ 		Timings::$scheduler->stopTiming();
++		$ezT1 = hrtime(true);
+ 
+ 		Timings::$schedulerAsync->startTiming();
+ 		$this->asyncPool->collectTasks();
+ 		Timings::$schedulerAsync->stopTiming();
++		$ezT2 = hrtime(true);
+ 
+ 		$this->worldManager->tick($this->tickCounter);
++		$ezT3 = hrtime(true);
+ 
+ 		Timings::$connection->startTiming();
+ 		$this->network->tick();
+ 		Timings::$connection->stopTiming();
++		$ezT4 = hrtime(true);
+ 
+ 		if(($this->tickCounter % self::TARGET_TICKS_PER_SECOND) === 0){
+ 			if($this->doTitleTick){
+@@ -1940,7 +1962,9 @@ class Server{
+ 			$this->logger->warning($this->language->translate(KnownTranslationFactory::pocketmine_server_tickOverload()));
+ 		}
+ 
++		$ezT5 = hrtime(true);
+ 		$this->memoryManager->check();
++		$ezT6 = hrtime(true);
+ 
+ 		if($this->console !== null){
+ 			Timings::$serverCommand->startTiming();
+@@ -1952,6 +1976,16 @@ class Server{
+ 		}
+ 
+ 		Timings::$serverTick->stopTiming();
++		$ezT7 = hrtime(true);
++		$this->ezLastTickPhases = [
++			"scheduler" => ($ezT1 - $ezT0) / 1e6,
++			"async" => ($ezT2 - $ezT1) / 1e6,
++			"worlds" => ($ezT3 - $ezT2) / 1e6,
++			"network" => ($ezT4 - $ezT3) / 1e6,
++			"memory" => ($ezT6 - $ezT5) / 1e6,
++			"other" => (($ezT5 - $ezT4) + ($ezT7 - $ezT6)) / 1e6,
++			"between" => $this->tickSleeper->getNotificationProcessingTime() / 1e6,
++		];
+ 
+ 		$now = microtime(true);
+ 		$totalTickTimeSeconds = $now - $tickTime + ($this->tickSleeper->getNotificationProcessingTime() / 1_000_000_000);
