@@ -1,0 +1,35 @@
+diff --git a/src/GarbageCollectorManager.php b/src/GarbageCollectorManager.php
+index 294403a..9201d84 100644
+--- a/src/GarbageCollectorManager.php
++++ b/src/GarbageCollectorManager.php
+@@ -77,6 +77,14 @@ final class GarbageCollectorManager{
+ 
+ 	public function getThreshold() : int{ return $this->threshold; }
+ 
++	/**
++	 * EZ 엔진 패치 001 (2026-11-15): 플러그인이 GC 기준(루트 수)을 바꾼다 — 판이 도는 동안 미루고 판 사이에 비우는 데 쓴다 (EZCore GcPacer).
++	 * 엔진의 자동 조정(adjustGcThreshold)은 다음 GC 뒤 다시 이어진다. 1 보다 작은 값은 1 로.
++	 */
++	public function setThreshold(int $threshold) : void{
++		$this->threshold = max(1, $threshold);
++	}
++
+ 	public function getCollectionTimeTotalNs() : int{ return $this->collectionTimeTotalNs; }
+ 
+ 	public function maybeCollectCycles() : int{
+diff --git a/src/MemoryManager.php b/src/MemoryManager.php
+index 2b7f5f1..7740736 100644
+--- a/src/MemoryManager.php
++++ b/src/MemoryManager.php
+@@ -115,6 +115,11 @@ class MemoryManager{
+ 		$this->dumpWorkers = $config->getPropertyBool(Yml::MEMORY_MEMORY_DUMP_DUMP_ASYNC_WORKER, true);
+ 	}
+ 
++	/** EZ 엔진 패치 001 (2026-11-15): 순환 GC 관리자 — 플러그인이 기준을 바꿀 때 (예전에는 리플렉션으로 꺼냈다) */
++	public function getCycleGcManager() : GarbageCollectorManager{
++		return $this->cycleGcManager;
++	}
++
+ 	public function isLowMemory() : bool{
+ 		return $this->lowMemory;
+ 	}
