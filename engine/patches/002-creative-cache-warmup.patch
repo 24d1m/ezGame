@@ -1,0 +1,19 @@
+diff --git a/src/network/mcpe/cache/CreativeInventoryCache.php b/src/network/mcpe/cache/CreativeInventoryCache.php
+index e543f34..a2a4daf 100644
+--- a/src/network/mcpe/cache/CreativeInventoryCache.php
++++ b/src/network/mcpe/cache/CreativeInventoryCache.php
+@@ -46,6 +46,14 @@ final class CreativeInventoryCache{
+ 	 */
+ 	private array $caches = [];
+ 
++	/**
++	 * EZ 엔진 패치 002 (2026-11-15): 캐시를 미리 만든다 — 서버가 켜질 때 불러 첫 접속 멈춤을 없앤다 (EZCore PacketCacheWarmup).
++	 * 원래는 첫 접속자가 올 때 처음 만들어 그 접속이 멈췄다. 목록이 바뀌면 엔진이 지우고 다음 접속 때 다시 만드는 것은 그대로.
++	 */
++	public function warmup(CreativeInventory $inventory) : void{
++		$this->getCacheEntry($inventory);
++	}
++
+ 	private function getCacheEntry(CreativeInventory $inventory) : CreativeInventoryCacheEntry{
+ 		$id = spl_object_id($inventory);
+ 		if(!isset($this->caches[$id])){

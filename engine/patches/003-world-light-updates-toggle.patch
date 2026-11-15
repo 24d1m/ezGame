@@ -1,0 +1,38 @@
+diff --git a/src/world/World.php b/src/world/World.php
+index 8efc832..ca1e061 100644
+--- a/src/world/World.php
++++ b/src/world/World.php
+@@ -382,6 +382,8 @@ class World implements ChunkManager{
+ 
+ 	private ?BlockLightUpdate $blockLightUpdate = null;
+ 	private ?SkyLightUpdate $skyLightUpdate = null;
++	/** EZ 엔진 패치 003: false 면 블록이 바뀔 때 빛을 다시 계산하지 않는다 */
++	private bool $lightUpdatesEnabled = true;
+ 
+ 	private \Logger $logger;
+ 
+@@ -1886,7 +1888,24 @@ class World implements ChunkManager{
+ 		return 0; //TODO: this should probably throw instead (light not calculated yet)
+ 	}
+ 
++	/**
++	 * EZ 엔진 패치 003 (2026-11-15): 이 월드에서 블록이 바뀔 때 서버 빛 계산을 끄거나 켠다.
++	 * 베드락은 화면의 빛을 클라이언트가 스스로 계산하고 서버 빛은 보내지 않는다 — 미니게임 경기장처럼 서버 빛을 쓰지 않는 월드에서 끈다
++	 * (재난의 섬 화산 웨이브: 용암이 흐를 때 Sky Light Updates 한 틱 131~192ms).
++	 * 꺼 둔 동안 바뀐 곳의 서버 빛 값은 옛 값으로 남는다 (무작위 블록 틱처럼 빛을 읽는 것은 setChunkTickRadius(0) 으로 함께 끄는 것을 권한다).
++	 */
++	public function setLightUpdatesEnabled(bool $enabled) : void{
++		$this->lightUpdatesEnabled = $enabled;
++	}
++
++	public function areLightUpdatesEnabled() : bool{
++		return $this->lightUpdatesEnabled;
++	}
++
+ 	public function updateAllLight(int $x, int $y, int $z) : void{
++		if(!$this->lightUpdatesEnabled){
++			return;
++		}
+ 		if(($chunk = $this->getChunk($x >> Chunk::COORD_BIT_SIZE, $z >> Chunk::COORD_BIT_SIZE)) === null || $chunk->isLightPopulated() !== true){
+ 			return;
+ 		}
